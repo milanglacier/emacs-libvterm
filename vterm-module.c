@@ -1253,6 +1253,9 @@ emacs_value Fvterm_new(emacs_env *env, ptrdiff_t nargs, emacs_value args[],
   vterm_screen_set_callbacks(term->vts, &vterm_screen_callbacks, term);
   vterm_screen_set_damage_merge(term->vts, VTERM_DAMAGE_SCROLL);
   vterm_screen_enable_altscreen(term->vts, true);
+#ifndef VTermScreenEnableReflowNotExists
+  vterm_screen_enable_reflow(term->vts, true);
+#endif
   term->sb_size = MIN(SB_MAX, sb_size);
   term->sb_current = 0;
   term->sb_pending = 0;
