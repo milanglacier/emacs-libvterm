@@ -28,6 +28,9 @@ void free_lineinfo(LineInfo *line) {
 }
 static int term_sb_push(int cols, const VTermScreenCell *cells, void *data) {
   Term *term = (Term *)data;
+  bool pushed_by_height_decr =
+      term->height_resize < 0 &&
+      term->sb_pending_by_height_decr < -term->height_resize;
 
   if (!term->sb_size) {
     return 0;
@@ -69,8 +72,9 @@ static int term_sb_push(int cols, const VTermScreenCell *cells, void *data) {
   sbrow->info = term->lines[0];
   memmove(term->lines, term->lines + 1,
           sizeof(term->lines[0]) * (term->lines_len - 1));
-  if (term->resizing) {
-    /* pushed by window height decr */
+  if (pushed_by_height_decr) {
+    /* Only shrink line metadata for rows lost to a height decrease.
+       Reflow can also push lines during width changes. */
     if (term->lines[term->lines_len - 1] != NULL) {
       /* do not need free here ,it is reused ,we just need set null */
       term->lines[term->lines_len - 1] = NULL;
@@ -97,8 +101,7 @@ static int term_sb_push(int cols, const VTermScreenCell *cells, void *data) {
   if (term->sb_pending < term->sb_size) {
     term->sb_pending++;
     /* when window height decreased */
-    if (term->height_resize < 0 &&
-        term->sb_pending_by_height_decr < -term->height_resize) {
+    if (pushed_by_height_decr) {
       term->sb_pending_by_height_decr++;
     }
   }
