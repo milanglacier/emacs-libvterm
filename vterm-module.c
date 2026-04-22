@@ -117,6 +117,9 @@ static int term_sb_push(int cols, const VTermScreenCell *cells, void *data) {
 /// @param data   Term
 static int term_sb_pop(int cols, VTermScreenCell *cells, void *data) {
   Term *term = (Term *)data;
+  bool popped_by_height_incr =
+      term->height_resize > 0 &&
+      term->lines_len < term->height + term->height_resize;
 
   if (!term->sb_current) {
     return 0;
@@ -145,14 +148,23 @@ static int term_sb_pop(int cols, VTermScreenCell *cells, void *data) {
     cells[col].width = 1;
   }
 
-  LineInfo **lines = malloc(sizeof(LineInfo *) * (term->lines_len + 1));
-
-  memmove(lines + 1, term->lines, sizeof(term->lines[0]) * term->lines_len);
-  lines[0] = sbrow->info;
+  if (popped_by_height_incr) {
+    LineInfo **lines = malloc(sizeof(LineInfo *) * (term->lines_len + 1));
+    memmove(lines + 1, term->lines, sizeof(term->lines[0]) * term->lines_len);
+    lines[0] = sbrow->info;
+    term->lines_len += 1;
+    free(term->lines);
+    term->lines = lines;
+  } else if (term->lines_len > 0) {
+    LineInfo *lastline = term->lines[term->lines_len - 1];
+    memmove(term->lines + 1, term->lines,
+            sizeof(term->lines[0]) * (term->lines_len - 1));
+    term->lines[0] = sbrow->info;
+    free_lineinfo(lastline);
+  } else {
+    free_lineinfo(sbrow->info);
+  }
   free(sbrow);
-  term->lines_len += 1;
-  free(term->lines);
-  term->lines = lines;
 
   return 1;
 }
@@ -424,8 +436,9 @@ static int term_resize(int rows, int cols, void *user_data) {
   term->invalid_start = 0;
   term->invalid_end = rows;
 
-  /* if rows=term->lines_len, that means term_sb_pop already resize term->lines
-   */
+  /* term_sb_pop grows term->lines only for rows gained by height increases.
+   * Reflow can also pop lines during width changes, but those pops keep the
+   * metadata length stable. */
   /* if rows<term->lines_len, term_sb_push would resize term->lines there */
   /* we only need to take care of rows>term->height */
 
