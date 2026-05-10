@@ -472,7 +472,6 @@ static int term_resize(int rows, int cols, void *user_data) {
   term->height = rows;
 
   invalidate_terminal(term, -1, -1);
-  term->resizing = false;
 
   return 1;
 }
@@ -1294,7 +1293,6 @@ emacs_value Fvterm_new(emacs_env *env, ptrdiff_t nargs, emacs_value args[],
   }
   term->linenum = term->height;
   term->linenum_added = 0;
-  term->resizing = false;
 
   term->pty_fd = -1;
 
@@ -1392,7 +1390,6 @@ emacs_value Fvterm_set_size(emacs_env *env, ptrdiff_t nargs, emacs_value args[],
         term->linenum_added = rows - term->height - term->sb_current;
       }
     }
-    term->resizing = true;
     vterm_set_size(term->vt, rows, cols);
     vterm_screen_flush_damage(term->vts);
 
